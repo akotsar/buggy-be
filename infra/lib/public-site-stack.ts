@@ -11,12 +11,12 @@ export class PublicSiteStack extends cdk.Stack {
     super(scope, id, props);
 
     this.bucket = new s3.Bucket(this, 'PublicSiteBucket', {
-      versioned: false,
-      websiteIndexDocument: "index.html"
+      versioned: false
     });
 
     this.distribution = new cloudfront.Distribution(this, "PublicSiteDistribution", {
       defaultBehavior: { origin: new origins.S3Origin(this.bucket) },
+      defaultRootObject: "index.html"
     })
   }
 }

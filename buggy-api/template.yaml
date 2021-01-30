@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  buggy-api
+
+Globals:
+  Function:
+    Timeout: 60
+
+Resources:
+  BuggyApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: buggy-api/api
+      Handler: buggy-api
+      Runtime: go1.x
+      Tracing: Active
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:GetObjectACL
+              Resource: "arn:aws:s3:::my-bucket/*"
+      Events:
+        CatchAllGet:
+          Type: Api
+          Properties:
+            Path: /{thepath+}
+            Method: GET
+        CatchAllPost:
+          Type: Api
+          Properties:
+            Path: /{thepath+}
+            Method: POST
+      Environment:
+        Variables:
+          DATA_TABLE_NAME:
+            Fn::ImportValue: DataStack-data-table-name
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  BuggyApiAPI:
+    Description: "API Gateway endpoint URL for Prod environment for First Function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  BuggyApiFunction:
+    Description: "First Lambda Function ARN"
+    Value: !GetAtt BuggyApiFunction.Arn
+  BuggyApiFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt BuggyApiFunctionRole.Arn
