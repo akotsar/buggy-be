@@ -10,11 +10,14 @@ import (
 	"log"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws/session"
 )
+
+const defaultPageSize = 5
 
 var getMakeByIDRegexp *regexp.Regexp
 
@@ -59,20 +62,29 @@ func getMakeByIDHandler(context requestcontext.RequestContext, makeID string) (e
 }
 
 func getModelsPage(context requestcontext.RequestContext, makeRecord makedata.MakeRecord, modelRecords []modeldata.ModelRecord) dtos.ModelList {
-	var modelList dtos.ModelList
+	var models []*dtos.ModelItem
 	for _, modelRecord := range modelRecords {
 		model := dtos.NewModelItemFromRecord(&modelRecord)
 		model.Make = makeRecord.Name
 		model.MakeImage = makeRecord.Image
-		modelList.Models = append(modelList.Models, *model)
+		models = append(models, model)
 	}
 
-	modelList.TotalPages = 1
+	// Pagination
+	page := context.APIRequest.QueryStringParameters["modelsPage"]
+	pageIndex, err := strconv.Atoi(page)
+	if err != nil {
+		pageIndex = 1
+	}
+
+	orderBy := context.APIRequest.QueryStringParameters["modelsOrderBy"]
+
+	modelList := dtos.GetModelsPage(models, pageIndex, defaultPageSize, orderBy)
 
 	return modelList
 }
 
-func getCommentsForModels(session *session.Session, models []dtos.ModelItem) {
+func getCommentsForModels(session *session.Session, models []*dtos.ModelItem) {
 	voteChannels := make([]chan *[]votedata.VoteRecord, len(models))
 	for i, model := range models {
 		modelID := model.ID

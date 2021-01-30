@@ -10,11 +10,6 @@ type Make struct {
 	Models      ModelList `json:"models"`
 }
 
-type ModelList struct {
-	TotalPages int         `json:"totalPages"`
-	Models     []ModelItem `json:"models"`
-}
-
 func NewMakeFromRecord(source *makedata.MakeRecord) *Make {
 	if source == nil {
 		return nil

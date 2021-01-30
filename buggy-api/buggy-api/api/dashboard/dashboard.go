@@ -10,7 +10,6 @@ import (
 	"buggy/internal/httpresponses"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-sdk-go/aws/session"
 )
 
 type dashboardMake struct {
@@ -34,7 +33,7 @@ type DashboardResponse struct {
 	Model dashboardModel `json:"model"`
 }
 
-// Handler handles the user-related API requests.
+// Handler handles the dashboard-related API requests.
 func Handler(context requestcontext.RequestContext) (events.APIGatewayProxyResponse, error) {
 	switch {
 	case strings.EqualFold(context.APIRequest.HTTPMethod, "GET") && context.Path == "dashboard":
@@ -45,14 +44,12 @@ func Handler(context requestcontext.RequestContext) (events.APIGatewayProxyRespo
 }
 
 func dashboardHandler(context requestcontext.RequestContext) (events.APIGatewayProxyResponse, error) {
-	session := session.Must(session.NewSession())
-
-	topMake, err := makedata.GetTopMake(session)
+	topMake, err := makedata.GetTopMake(context.Session)
 	if err != nil {
 		return events.APIGatewayProxyResponse{}, err
 	}
 
-	topModel, err := modeldata.GetTopModel(session)
+	topModel, err := modeldata.GetTopModel(context.Session)
 	if err != nil {
 		return events.APIGatewayProxyResponse{}, err
 	}
@@ -69,7 +66,7 @@ func dashboardHandler(context requestcontext.RequestContext) (events.APIGatewayP
 
 	if topModel != nil {
 		// Fetch the make
-		make, err := makedata.GetMakeByID(session, topModel.GetMakeID())
+		make, err := makedata.GetMakeByID(context.Session, topModel.GetMakeID())
 		if err != nil {
 			log.Fatalf("Unable to fetch model's make: %v\n", err)
 		}

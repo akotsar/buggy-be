@@ -2,6 +2,7 @@ package datacommon
 
 import (
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"strings"
@@ -106,13 +107,14 @@ func GetItemsByKeyPrefix(dynamo *dynamodb.DynamoDB, prefix string, output interf
 
 		go func() {
 			defer func() { ch <- nil }()
-			queryResult, err := dynamo.Query(&dynamodb.QueryInput{
+			input := &dynamodb.QueryInput{
 				TableName:                 aws.String(tableName),
 				IndexName:                 aws.String(TypeAndIDIndexName),
 				KeyConditionExpression:    expr.KeyCondition(),
 				ExpressionAttributeNames:  expr.Names(),
 				ExpressionAttributeValues: expr.Values(),
-			})
+			}
+			queryResult, err := dynamo.Query(input)
 
 			if err != nil {
 				log.Fatalf("Unable to generate key condition: %v\n", err)
@@ -132,6 +134,89 @@ func GetItemsByKeyPrefix(dynamo *dynamodb.DynamoDB, prefix string, output interf
 	if err != nil {
 		log.Fatalf("Unable to unmarshall records: %v\n", err)
 		return err
+	}
+
+	return nil
+}
+
+// DeleteAllByPrefix deletes all items with a given prefix form the database.
+func DeleteAllByPrefix(dynamo *dynamodb.DynamoDB, prefix string) error {
+	var items []DynamoRecordKey
+	err := GetItemsByKeyPrefix(dynamo, prefix, &items)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Deleting %d items.", len(items))
+	writeRequests := make([]*dynamodb.WriteRequest, 0, len(items))
+	for _, item := range items {
+		log.Printf("Deleting %v.", item)
+
+		key, _ := dynamodbattribute.MarshalMap(&item)
+		r := dynamodb.WriteRequest{
+			DeleteRequest: &dynamodb.DeleteRequest{
+				Key: key,
+			},
+		}
+
+		writeRequests = append(writeRequests, &r)
+	}
+
+	const maxWriteOps = 25
+
+	batches := int(math.Ceil(float64(len(items)) / maxWriteOps))
+	for i := 0; i < batches; i++ {
+		start, end := i*maxWriteOps, (i+1)*maxWriteOps
+		if end > len(writeRequests) {
+			end = len(writeRequests)
+		}
+		ops := writeRequests[start:end]
+
+		_, err = dynamo.BatchWriteItem(&dynamodb.BatchWriteItemInput{
+			RequestItems: map[string][]*dynamodb.WriteRequest{
+				GetTableName(): ops,
+			},
+		})
+		if err != nil {
+			log.Fatalf("Unable to delete records: %v\n", err)
+		}
+	}
+
+	return nil
+}
+
+// PutItems writes multiple records into the database.
+func PutItems(dynamo *dynamodb.DynamoDB, items []map[string]*dynamodb.AttributeValue) error {
+	log.Printf("Writing %d items.", len(items))
+	writeRequests := make([]*dynamodb.WriteRequest, 0, len(items))
+	for _, item := range items {
+		r := dynamodb.WriteRequest{
+			PutRequest: &dynamodb.PutRequest{
+				Item: item,
+			},
+		}
+
+		writeRequests = append(writeRequests, &r)
+	}
+
+	const maxWriteOps = 25
+
+	batches := int(math.Ceil(float64(len(items)) / maxWriteOps))
+	for i := 0; i < batches; i++ {
+		start, end := i*maxWriteOps, (i+1)*maxWriteOps
+		if end > len(writeRequests) {
+			end = len(writeRequests)
+		}
+		ops := writeRequests[start:end]
+
+		_, err := dynamo.BatchWriteItem(&dynamodb.BatchWriteItemInput{
+			RequestItems: map[string][]*dynamodb.WriteRequest{
+				GetTableName(): ops,
+			},
+		})
+		if err != nil {
+			log.Fatalf("Unable to write records: %v\n", err)
+		}
 	}
 
 	return nil

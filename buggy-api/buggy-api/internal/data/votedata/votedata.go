@@ -7,11 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 )
 
-const modelType = "Vote"
+const voteType = "Vote"
 
 // VoteRecord represents a user vote for a given car model.
 type VoteRecord struct {
@@ -45,9 +48,29 @@ func (model VoteRecord) GetUserID() string {
 // GetVotesByModelID returns a list of user votes for a given car model.
 func GetVotesByModelID(session *session.Session, modelID string) (*[]VoteRecord, error) {
 	dynamo := dynamodb.New(session)
-	var votes []VoteRecord
 
-	err := datacommon.GetItemsByKeyPrefix(dynamo, generateVoteRecordID(modelID, ""), &votes)
+	keyCondition := expression.Key("RecordID").Equal(expression.Value(modeldata.GenerateModelRecordID(modelID))).And(
+		expression.Key("TypeAndID").BeginsWith(GenerateVoteRecordID(modelID, "")),
+	)
+
+	expr, err := expression.NewBuilder().WithKeyCondition(keyCondition).Build()
+	if err != nil {
+		return nil, err
+	}
+
+	input := &dynamodb.QueryInput{
+		TableName:                 aws.String(datacommon.GetTableName()),
+		KeyConditionExpression:    expr.KeyCondition(),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+	}
+	queryResult, err := dynamo.Query(input)
+	if err != nil {
+		return nil, err
+	}
+
+	var votes []VoteRecord
+	err = dynamodbattribute.UnmarshalListOfMaps(queryResult.Items, &votes)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +85,7 @@ func HasUserVotedForModel(session *session.Session, modelID string, userID strin
 
 	exists, err := datacommon.GetItemByKey(dynamo, &datacommon.DynamoRecordKey{
 		RecordID:  modeldata.GenerateModelRecordID(modelID),
-		TypeAndID: generateVoteRecordID(modelID, userID),
+		TypeAndID: GenerateVoteRecordID(modelID, userID),
 	}, &vote)
 	if err != nil {
 		return false, err
@@ -71,6 +94,32 @@ func HasUserVotedForModel(session *session.Session, modelID string, userID strin
 	return exists, nil
 }
 
-func generateVoteRecordID(modelID, userID string) string {
-	return fmt.Sprintf("%s|%s|%s", modelType, modelID, userID)
+// DeleteAllVotes deletes all votes form the database.
+func DeleteAllVotes(session *session.Session) error {
+	dynamo := dynamodb.New(session)
+
+	return datacommon.DeleteAllByPrefix(dynamo, fmt.Sprintf("%s|", voteType))
+}
+
+// PutVotes writes multiple vote records.
+func PutVotes(session *session.Session, votes []*VoteRecord) error {
+	dynamo := dynamodb.New(session)
+
+	attrMaps := make([]map[string]*dynamodb.AttributeValue, 0, len(votes))
+	for _, v := range votes {
+		av, err := dynamodbattribute.MarshalMap(v)
+		if err != nil {
+			return err
+		}
+
+		attrMaps = append(attrMaps, av)
+	}
+
+	err := datacommon.PutItems(dynamo, attrMaps)
+
+	return err
+}
+
+func GenerateVoteRecordID(modelID, userID string) string {
+	return fmt.Sprintf("%s|%s|%s", voteType, modelID, userID)
 }

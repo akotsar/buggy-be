@@ -33,6 +33,13 @@ func (model ModelRecord) GetMakeID() string {
 	return strings.Split(model.TypeAndID, "|")[1]
 }
 
+// SortByVotesDescending implements sort.Interface for []VoteRecord based on the DateVoted field.
+type SortByVotesDescending []ModelRecord
+
+func (a SortByVotesDescending) Len() int           { return len(a) }
+func (a SortByVotesDescending) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a SortByVotesDescending) Less(i, j int) bool { return a[j].Votes < a[i].Votes }
+
 // GetModelsByMakeID returns a list of models of a given make.
 func GetModelsByMakeID(session *session.Session, makeID string) ([]ModelRecord, error) {
 	dynamo := dynamodb.New(session)
@@ -87,6 +94,33 @@ func GetTopModel(session *session.Session) (*ModelRecord, error) {
 	}
 
 	return &make, nil
+}
+
+// DeleteAllModels deletes all models form the database.
+func DeleteAllModels(session *session.Session) error {
+	dynamo := dynamodb.New(session)
+
+	return datacommon.DeleteAllByPrefix(dynamo, GenerateModelRecordID(""))
+}
+
+// PutModels writes multiple model records.
+func PutModels(session *session.Session, models []*ModelRecord) error {
+	dynamo := dynamodb.New(session)
+
+	modelAttrMaps := make([]map[string]*dynamodb.AttributeValue, 0, len(models))
+	for _, m := range models {
+		m.EntityType = modelType
+		av, err := dynamodbattribute.MarshalMap(m)
+		if err != nil {
+			return err
+		}
+
+		modelAttrMaps = append(modelAttrMaps, av)
+	}
+
+	err := datacommon.PutItems(dynamo, modelAttrMaps)
+
+	return err
 }
 
 // GenerateModelRecordID generates a Dynamo record ID for a given model.

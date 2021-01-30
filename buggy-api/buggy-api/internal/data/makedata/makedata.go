@@ -28,7 +28,7 @@ type MakeRecord struct {
 // GetMakeByID returns make by its Id.
 func GetMakeByID(session *session.Session, makeID string) (*MakeRecord, error) {
 	dynamo := dynamodb.New(session)
-	recordID := generateMakeRecordID(makeID)
+	recordID := GenerateMakeRecordID(makeID)
 
 	var response *MakeRecord = &MakeRecord{}
 	exists, err := datacommon.GetItemByKey(dynamo, &datacommon.DynamoRecordKey{RecordID: recordID, TypeAndID: recordID}, response)
@@ -88,6 +88,24 @@ func GetTopMake(session *session.Session) (*MakeRecord, error) {
 	return &make, nil
 }
 
-func generateMakeRecordID(ID string) string {
+// PutMake writes a make record.
+func PutMake(session *session.Session, make *MakeRecord) error {
+	dynamo := dynamodb.New(session)
+
+	make.EntityType = makeType
+
+	_, err := datacommon.PutItem(dynamo, make)
+
+	return err
+}
+
+// DeleteAllMakes deletes all makes form the database.
+func DeleteAllMakes(session *session.Session) error {
+	dynamo := dynamodb.New(session)
+
+	return datacommon.DeleteAllByPrefix(dynamo, GenerateMakeRecordID(""))
+}
+
+func GenerateMakeRecordID(ID string) string {
 	return fmt.Sprintf("%s|%s", makeType, ID)
 }
