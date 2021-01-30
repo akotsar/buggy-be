@@ -16,7 +16,14 @@ export class PublicSiteStack extends cdk.Stack {
 
     this.distribution = new cloudfront.Distribution(this, "PublicSiteDistribution", {
       defaultBehavior: { origin: new origins.S3Origin(this.bucket) },
-      defaultRootObject: "index.html"
+      defaultRootObject: "index.html",
+      errorResponses: [
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: "/index.html"
+        }
+      ]
     })
   }
 }
