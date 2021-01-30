@@ -4,6 +4,7 @@ import (
 	"buggy/internal/data/datacommon"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -19,7 +20,6 @@ type ModelRecord struct {
 	datacommon.DynamoRecordKey
 	ShardID     uint8
 	EntityType  string
-	ModelID     string
 	Name        string
 	Image       string
 	Description string
@@ -28,12 +28,29 @@ type ModelRecord struct {
 	Votes       int
 }
 
+// GetMakeID returns make ID from TypeAndID.
+func (model ModelRecord) GetMakeID() string {
+	return strings.Split(model.TypeAndID, "|")[1]
+}
+
+// GetModelsByMakeID returns a list of models of a given make.
+func GetModelsByMakeID(session *session.Session, makeID string) ([]ModelRecord, error) {
+	dynamo := dynamodb.New(session)
+	var models []ModelRecord
+
+	err := datacommon.GetItemsByKeyPrefix(dynamo, GenerateModelRecordID(makeID), &models)
+	if err != nil {
+		return nil, err
+	}
+
+	return models, nil
+}
+
 // GetTopModel returns a model with the most votes.
 func GetTopModel(session *session.Session) (*ModelRecord, error) {
 	dynamo := dynamodb.New(session)
 	tableName := datacommon.GetTableName()
 
-	// Looking for the top make
 	keyCondition := expression.Key("EntityType").Equal(expression.Value(modelType))
 
 	expr, err := expression.NewBuilder().WithKeyCondition(keyCondition).Build()
@@ -72,6 +89,7 @@ func GetTopModel(session *session.Session) (*ModelRecord, error) {
 	return &make, nil
 }
 
-func generateModelRecord(ID string) string {
-	return fmt.Sprintf("%s|%s", modelType, ID)
+// GenerateModelRecordID generates a Dynamo record ID for a given model.
+func GenerateModelRecordID(modelID string) string {
+	return fmt.Sprintf("%s|%s", modelType, modelID)
 }

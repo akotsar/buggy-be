@@ -4,6 +4,7 @@ import (
 	"log"
 	"strings"
 
+	"buggy/api/requestcontext"
 	"buggy/internal/data/makedata"
 	"buggy/internal/data/modeldata"
 	"buggy/internal/httpresponses"
@@ -13,14 +14,14 @@ import (
 )
 
 type dashboardMake struct {
-	Id    string `json:"id"`
+	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Image string `json:"image"`
 	Votes int    `json:"votes"`
 }
 
 type dashboardModel struct {
-	Id    string `json:"id"`
+	ID    string `json:"id"`
 	Make  string `json:"make"`
 	Name  string `json:"name"`
 	Image string `json:"image"`
@@ -34,16 +35,16 @@ type DashboardResponse struct {
 }
 
 // Handler handles the user-related API requests.
-func Handler(userID string, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func Handler(context requestcontext.RequestContext) (events.APIGatewayProxyResponse, error) {
 	switch {
-	case strings.EqualFold(request.HTTPMethod, "GET") && request.PathParameters["thepath"] == "dashboard":
-		return dashboardHandler(userID)
+	case strings.EqualFold(context.APIRequest.HTTPMethod, "GET") && context.Path == "dashboard":
+		return dashboardHandler(context)
 	}
 
 	return httpresponses.NotFound, nil
 }
 
-func dashboardHandler(userID string) (events.APIGatewayProxyResponse, error) {
+func dashboardHandler(context requestcontext.RequestContext) (events.APIGatewayProxyResponse, error) {
 	session := session.Must(session.NewSession())
 
 	topMake, err := makedata.GetTopMake(session)
@@ -59,7 +60,7 @@ func dashboardHandler(userID string) (events.APIGatewayProxyResponse, error) {
 	var response DashboardResponse
 	if topMake != nil {
 		response.Make = dashboardMake{
-			Id:    topMake.GetIDFromTypeAndID(),
+			ID:    topMake.GetIDFromTypeAndID(),
 			Name:  topMake.Name,
 			Image: topMake.Image,
 			Votes: topMake.Votes,
@@ -68,7 +69,7 @@ func dashboardHandler(userID string) (events.APIGatewayProxyResponse, error) {
 
 	if topModel != nil {
 		// Fetch the make
-		make, err := makedata.GetMakeByID(session, topModel.ModelID)
+		make, err := makedata.GetMakeByID(session, topModel.GetMakeID())
 		if err != nil {
 			log.Fatalf("Unable to fetch model's make: %v\n", err)
 		}
@@ -79,7 +80,7 @@ func dashboardHandler(userID string) (events.APIGatewayProxyResponse, error) {
 		}
 
 		response.Model = dashboardModel{
-			Id:    topModel.GetIDFromTypeAndID(),
+			ID:    topModel.GetIDFromTypeAndID(),
 			Make:  makeName,
 			Name:  topModel.Name,
 			Image: topModel.Image,

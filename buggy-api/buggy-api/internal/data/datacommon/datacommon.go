@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 	"github.com/rs/xid"
 )
 
@@ -44,7 +45,7 @@ func GenerateNewID() string {
 
 // GetIDFromTypeAndID returns ID of the record from TypeAndID value
 func (record DynamoRecordKey) GetIDFromTypeAndID() string {
-	return strings.Split(record.TypeAndID, "|")[1]
+	return strings.SplitN(record.TypeAndID, "|", 2)[1]
 }
 
 // PutItem marshals and puts a recored into Dynamo
@@ -82,4 +83,56 @@ func GetItemByKey(dynamo *dynamodb.DynamoDB, key *DynamoRecordKey, output interf
 	}
 
 	return exists, nil
+}
+
+// GetItemsByKeyPrefix Finds Records with TypeAndID starting with a given prefix.
+func GetItemsByKeyPrefix(dynamo *dynamodb.DynamoDB, prefix string, output interface{}) error {
+	tableName := GetTableName()
+
+	var shardOutputs [MaxShards]chan []map[string]*dynamodb.AttributeValue
+	for i := range shardOutputs {
+		ch := make(chan []map[string]*dynamodb.AttributeValue)
+		shardOutputs[i] = ch
+
+		keyCondition := expression.Key("ShardID").Equal(expression.Value(i)).And(
+			expression.Key("TypeAndID").BeginsWith(prefix),
+		)
+
+		expr, err := expression.NewBuilder().WithKeyCondition(keyCondition).Build()
+		if err != nil {
+			log.Fatalf("Unable to generate key condition: %v\n", err)
+			return err
+		}
+
+		go func() {
+			defer func() { ch <- nil }()
+			queryResult, err := dynamo.Query(&dynamodb.QueryInput{
+				TableName:                 aws.String(tableName),
+				IndexName:                 aws.String(TypeAndIDIndexName),
+				KeyConditionExpression:    expr.KeyCondition(),
+				ExpressionAttributeNames:  expr.Names(),
+				ExpressionAttributeValues: expr.Values(),
+			})
+
+			if err != nil {
+				log.Fatalf("Unable to generate key condition: %v\n", err)
+				return
+			}
+
+			ch <- queryResult.Items
+		}()
+	}
+
+	var allResults []map[string]*dynamodb.AttributeValue
+	for _, shardResults := range shardOutputs {
+		allResults = append(allResults, <-shardResults...)
+	}
+
+	err := dynamodbattribute.UnmarshalListOfMaps(allResults, output)
+	if err != nil {
+		log.Fatalf("Unable to unmarshall records: %v\n", err)
+		return err
+	}
+
+	return nil
 }
