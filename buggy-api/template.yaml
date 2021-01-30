@@ -18,11 +18,18 @@ Resources:
       Policies:
         - Version: "2012-10-17"
           Statement:
-            - Effect: Allow
+            - Effect: "Allow"
               Action:
-                - s3:GetObject
-                - s3:GetObjectACL
-              Resource: "arn:aws:s3:::my-bucket/*"
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:Query
+                - dynamodb:Batch*
+              Resource:
+                - Fn::ImportValue: DataStack-data-table-arn
+                - !Join
+                  - ""
+                  - - Fn::ImportValue: DataStack-data-table-arn
+                    - "/index/*"
       Events:
         CatchAllGet:
           Type: Api
