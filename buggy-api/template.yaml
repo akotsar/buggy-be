@@ -72,6 +72,12 @@ Resources:
             RestApiId: !Ref BuggyApi
             Path: /{thepath+}
             Method: POST
+        CatchAllPut:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BuggyApi
+            Path: /{thepath+}
+            Method: PUT
       Environment:
         Variables:
           DATA_TABLE_NAME:

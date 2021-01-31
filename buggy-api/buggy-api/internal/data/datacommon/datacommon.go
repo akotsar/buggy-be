@@ -66,14 +66,12 @@ func PutItem(dynamo *dynamodb.DynamoDB, item interface{}) (*dynamodb.PutItemOutp
 func GetItemByKey(dynamo *dynamodb.DynamoDB, key *DynamoRecordKey, output interface{}) (bool, error) {
 	keyMap, err := dynamodbattribute.MarshalMap(key)
 	if err != nil {
-		log.Fatalf("Unable to convert the key into an attribute map: %v", key)
 		return false, err
 	}
 
 	request := &dynamodb.GetItemInput{TableName: aws.String(GetTableName()), Key: keyMap}
 	result, err := dynamo.GetItem(request)
 	if err != nil {
-		log.Fatalf("Error while fetching record by id: %v", err)
 		return false, err
 	}
 
@@ -101,7 +99,6 @@ func GetItemsByKeyPrefix(dynamo *dynamodb.DynamoDB, prefix string, output interf
 
 		expr, err := expression.NewBuilder().WithKeyCondition(keyCondition).Build()
 		if err != nil {
-			log.Fatalf("Unable to generate key condition: %v\n", err)
 			return err
 		}
 
@@ -117,7 +114,6 @@ func GetItemsByKeyPrefix(dynamo *dynamodb.DynamoDB, prefix string, output interf
 			queryResult, err := dynamo.Query(input)
 
 			if err != nil {
-				log.Fatalf("Unable to generate key condition: %v\n", err)
 				return
 			}
 
@@ -132,7 +128,6 @@ func GetItemsByKeyPrefix(dynamo *dynamodb.DynamoDB, prefix string, output interf
 
 	err := dynamodbattribute.UnmarshalListOfMaps(allResults, output)
 	if err != nil {
-		log.Fatalf("Unable to unmarshall records: %v\n", err)
 		return err
 	}
 
@@ -178,7 +173,7 @@ func DeleteAllByPrefix(dynamo *dynamodb.DynamoDB, prefix string) error {
 			},
 		})
 		if err != nil {
-			log.Fatalf("Unable to delete records: %v\n", err)
+			log.Printf("Unable to delete records: %v\n", err)
 		}
 	}
 
@@ -215,7 +210,7 @@ func PutItems(dynamo *dynamodb.DynamoDB, items []map[string]*dynamodb.AttributeV
 			},
 		})
 		if err != nil {
-			log.Fatalf("Unable to write records: %v\n", err)
+			log.Printf("Unable to write records: %v\n", err)
 		}
 	}
 

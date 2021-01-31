@@ -40,14 +40,14 @@ func Handler(context requestcontext.RequestContext) (events.APIGatewayProxyRespo
 func authenticateHandler(context requestcontext.RequestContext) (events.APIGatewayProxyResponse, error) {
 	parsedQuery, err := url.ParseQuery(context.APIRequest.Body)
 	if err != nil {
-		log.Fatalf("Invalid oauth query: %v\n", err)
+		log.Printf("Invalid oauth query: %v\n", err)
 		return httpresponses.InvalidRequest, nil
 	}
 
 	var request tokenRequest
 	err = decoder.Decode(&request, parsedQuery)
 	if err != nil {
-		log.Fatalf("Invalid oauth query: %v\n", err)
+		log.Printf("Invalid oauth query: %v\n", err)
 		return httpresponses.InvalidRequest, nil
 	}
 

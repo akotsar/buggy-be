@@ -68,7 +68,7 @@ func dashboardHandler(context requestcontext.RequestContext) (events.APIGatewayP
 		// Fetch the make
 		make, err := makedata.GetMakeByID(context.Session, topModel.GetMakeID())
 		if err != nil {
-			log.Fatalf("Unable to fetch model's make: %v\n", err)
+			log.Printf("Unable to fetch model's make: %v\n", err)
 		}
 
 		var makeName string

@@ -8,6 +8,8 @@ import (
 // RequestContext contains context information of an API request.
 type RequestContext struct {
 	UserID     string
+	Username   string
+	Token      string
 	Path       string
 	APIRequest *events.APIGatewayProxyRequest
 	Session    *session.Session

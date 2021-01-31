@@ -7,8 +7,13 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
-var NotFound = CreateAPIResponse(404, []byte("Not Found"))
-var InvalidRequest = CreateAPIResponse(400, []byte("Unable to decode the request."))
+var NotFound = CreateErrorResponse(404, "Not Found")
+var InvalidRequest = CreateErrorResponse(400, "Unable to decode the request.")
+var Unauthorized = CreateErrorResponse(401, "Not authorized.")
+
+type errorResponse struct {
+	Message string `json:"message"`
+}
 
 // CreateJSONResponse creates a standard JSON data response.
 func CreateJSONResponse(statusCode int, data interface{}) events.APIGatewayProxyResponse {
@@ -16,11 +21,11 @@ func CreateJSONResponse(statusCode int, data interface{}) events.APIGatewayProxy
 	var err error
 	bodyJSON, err = json.Marshal(data)
 	if err != nil {
-		log.Fatalf("Unable to serialize response value: %v. Error: %v\n", data, err)
+		log.Printf("Unable to serialize response value: %v. Error: %v\n", data, err)
 		return CreateAPIResponse(500, []byte("An unexpected error has occurred"))
 	}
 
-	return CreateAPIResponse(200, bodyJSON)
+	return CreateAPIResponse(statusCode, bodyJSON)
 }
 
 // CreateAPIResponse creates a standard API response.
@@ -35,4 +40,9 @@ func CreateAPIResponse(statusCode int, body []byte) events.APIGatewayProxyRespon
 		StatusCode: statusCode,
 		Body:       string(body),
 		Headers:    headers}
+}
+
+// CreateErrorResponse creates a standard error response.
+func CreateErrorResponse(statusCode int, errorMessage string) events.APIGatewayProxyResponse {
+	return CreateJSONResponse(statusCode, &errorResponse{Message: errorMessage})
 }

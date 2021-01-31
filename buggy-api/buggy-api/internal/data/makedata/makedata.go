@@ -33,7 +33,7 @@ func GetMakeByID(session *session.Session, makeID string) (*MakeRecord, error) {
 	var response *MakeRecord = &MakeRecord{}
 	exists, err := datacommon.GetItemByKey(dynamo, &datacommon.DynamoRecordKey{RecordID: recordID, TypeAndID: recordID}, response)
 	if err != nil {
-		log.Fatalf("Error while fetching user by id: %v", err)
+		log.Printf("Error while fetching user by id: %v", err)
 		return nil, err
 	}
 
@@ -54,7 +54,6 @@ func GetTopMake(session *session.Session) (*MakeRecord, error) {
 
 	expr, err := expression.NewBuilder().WithKeyCondition(keyCondition).Build()
 	if err != nil {
-		log.Fatalf("Unable to generate key condition: %v\n", err)
 		return nil, err
 	}
 
@@ -68,7 +67,6 @@ func GetTopMake(session *session.Session) (*MakeRecord, error) {
 		Limit:                     aws.Int64(1),
 	})
 	if err != nil {
-		log.Fatalf("Unable to query top make records: %v\n", err)
 		return nil, err
 	}
 
@@ -81,7 +79,6 @@ func GetTopMake(session *session.Session) (*MakeRecord, error) {
 	var make MakeRecord
 	err = dynamodbattribute.UnmarshalMap(topMakeResult.Items[0], &make)
 	if err != nil {
-		log.Fatalf("Unable to unmarshall make record: %v\n", err)
 		return nil, err
 	}
 

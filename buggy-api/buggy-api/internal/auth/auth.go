@@ -46,7 +46,26 @@ type LoginUserOutput struct {
 
 // ValidateTokenOutput contains information about the provided token.
 type ValidateTokenOutput struct {
-	Sub string
+	UserID   string
+	Username string
+	Token    string
+}
+
+// ChangePasswordInput contains information for changing password.
+type ChangePasswordInput struct {
+	Username        string
+	CurrentPassword string
+	NewPassword     string
+	Token           string
+}
+
+type cognitoClaims struct {
+	Subject  string `json:"sub,omitempty"`
+	Username string `json:"username,omitempty"`
+}
+
+func (c *cognitoClaims) Valid() error {
+	return nil
 }
 
 func init() {
@@ -125,7 +144,7 @@ func RegisterUser(session *session.Session, request RegisterUserInput) (string, 
 
 // ValidateToken validates an authentication token.
 func ValidateToken(tokenString string) (*ValidateTokenOutput, error) {
-	var claims jwt.StandardClaims
+	var claims cognitoClaims
 	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
 		keys := CognitoJWK.LookupKeyID(fmt.Sprintf("%v", token.Header["kid"]))
 		if len(keys) == 0 {
@@ -151,5 +170,20 @@ func ValidateToken(tokenString string) (*ValidateTokenOutput, error) {
 		return nil, errors.New("the token is invalid")
 	}
 
-	return &ValidateTokenOutput{Sub: claims.Subject}, nil
+	return &ValidateTokenOutput{UserID: claims.Subject, Username: claims.Username, Token: tokenString}, nil
+}
+
+// ChangePassword changes user password.
+func ChangePassword(session *session.Session, input *ChangePasswordInput) error {
+	cognito := cognitoidentityprovider.New(session)
+	_, err := cognito.ChangePassword(&cognitoidentityprovider.ChangePasswordInput{
+		AccessToken:      aws.String(input.Token),
+		PreviousPassword: aws.String(input.CurrentPassword),
+		ProposedPassword: aws.String(input.NewPassword),
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

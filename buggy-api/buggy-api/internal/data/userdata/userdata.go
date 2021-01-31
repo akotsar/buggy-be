@@ -13,6 +13,7 @@ const userType = "User"
 // UserRecord represents a user.
 type UserRecord struct {
 	datacommon.DynamoRecordKey
+	Username  string
 	FirstName string
 	LastName  string
 	Gender    string
@@ -20,6 +21,7 @@ type UserRecord struct {
 	Address   string
 	Phone     string
 	Hobby     string
+	IsAdmin   bool
 }
 
 // PutUser writes a user record.
@@ -29,6 +31,27 @@ func PutUser(session *session.Session, user *UserRecord) error {
 	_, err := datacommon.PutItem(dynamo, user)
 
 	return err
+}
+
+// GetUserByID returns a user by its ID.
+func GetUserByID(session *session.Session, userID string) (*UserRecord, error) {
+	dynamo := dynamodb.New(session)
+
+	var userRecord UserRecord
+	recordID := GenerateUserRecordID(userID)
+	found, err := datacommon.GetItemByKey(dynamo, &datacommon.DynamoRecordKey{
+		RecordID:  recordID,
+		TypeAndID: recordID,
+	}, &userRecord)
+	if err != nil {
+		return nil, err
+	}
+
+	if !found {
+		return nil, nil
+	}
+
+	return &userRecord, nil
 }
 
 // GenerateUserRecordID creates new record ID for a user.

@@ -22,7 +22,6 @@ var authHeaderRegex = regexp.MustCompile("^Bearer (\\S+)$")
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	context := requestcontext.RequestContext{
-		UserID:     "",
 		APIRequest: &request,
 		Path:       request.PathParameters["thepath"],
 		Session:    session.Must(session.NewSession()),
@@ -68,7 +67,9 @@ func handleAuth(context *requestcontext.RequestContext) {
 		return
 	}
 
-	context.UserID = validationOutput.Sub
+	context.UserID = validationOutput.UserID
+	context.Username = validationOutput.Username
+	context.Token = validationOutput.Token
 }
 
 func main() {

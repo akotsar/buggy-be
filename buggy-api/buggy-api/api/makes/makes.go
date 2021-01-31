@@ -94,7 +94,7 @@ func getCommentsForModels(session *session.Session, models []*dtos.ModelItem) {
 			defer func() { ch <- nil }()
 			result, err := votedata.GetVotesByModelID(session, modelID)
 			if err != nil {
-				log.Fatalf("Unable to fetch votes: %v\n", err)
+				log.Printf("Unable to fetch votes: %v\n", err)
 				return
 			}
 

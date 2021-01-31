@@ -62,7 +62,6 @@ func GetTopModel(session *session.Session) (*ModelRecord, error) {
 
 	expr, err := expression.NewBuilder().WithKeyCondition(keyCondition).Build()
 	if err != nil {
-		log.Fatalf("Unable to generate key condition: %v\n", err)
 		return nil, err
 	}
 
@@ -76,7 +75,6 @@ func GetTopModel(session *session.Session) (*ModelRecord, error) {
 		Limit:                     aws.Int64(1),
 	})
 	if err != nil {
-		log.Fatalf("Unable to query top model records: %v\n", err)
 		return nil, err
 	}
 
@@ -89,7 +87,6 @@ func GetTopModel(session *session.Session) (*ModelRecord, error) {
 	var make ModelRecord
 	err = dynamodbattribute.UnmarshalMap(topModelResult.Items[0], &make)
 	if err != nil {
-		log.Fatalf("Unable to unmarshall record: %v\n", err)
 		return nil, err
 	}
 
