@@ -8,6 +8,26 @@ Globals:
     Timeout: 10
 
 Resources:
+  BuggyApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors:
+        AllowOrigin: "'*'"
+        AllowMethods: "'OPTIONS,HEAD,GET,PUT,POST'"
+        AllowHeaders: "'*'"
+        AllowCredentials: "'*'"
+      GatewayResponses:
+        DEFAULT_4xx:
+          ResponseParameters:
+            Headers:
+              Access-Control-Expose-Headers: "'*'"
+              Access-Control-Allow-Origin: "'*'"
+        DEFAULT_5xx:
+          ResponseParameters:
+            Headers:
+              Access-Control-Expose-Headers: "'*'"
+              Access-Control-Allow-Origin: "'*'"
   BuggyApiFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -30,21 +50,36 @@ Resources:
                   - ""
                   - - Fn::ImportValue: DataStack-data-table-arn
                     - "/index/*"
+            - Effect: "Allow"
+              Action:
+                - cognito-idp:AdminInitiateAuth
+                - cognito-idp:AdminConfirmSignUp
+              Resource:
+                - !Join
+                  - ""
+                  - - Fn::Sub: "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/"
+                    - Fn::ImportValue: AuthStack-user-pool-id
       Events:
         CatchAllGet:
           Type: Api
           Properties:
+            RestApiId: !Ref BuggyApi
             Path: /{thepath+}
             Method: GET
         CatchAllPost:
           Type: Api
           Properties:
+            RestApiId: !Ref BuggyApi
             Path: /{thepath+}
             Method: POST
       Environment:
         Variables:
           DATA_TABLE_NAME:
             Fn::ImportValue: DataStack-data-table-name
+          COGNITO_POOL_ID:
+            Fn::ImportValue: AuthStack-user-pool-id
+          COGNITO_POOL_CLIENT_ID:
+            Fn::ImportValue: AuthStack-user-pool-client-id
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
@@ -52,7 +87,7 @@ Outputs:
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   BuggyApiAPI:
     Description: "API Gateway endpoint URL for Prod environment for First Function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Value: !Sub "https://${BuggyApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
   BuggyApiFunction:
     Description: "First Lambda Function ARN"
     Value: !GetAtt BuggyApiFunction.Arn
