@@ -60,6 +60,14 @@ Resources:
               Action:
                 - cognito-idp:AdminInitiateAuth
                 - cognito-idp:AdminConfirmSignUp
+                - cognito-idp:ListUsers
+                - cognito-idp:SignUp
+                - cognito-idp:ChangePassword
+                - cognito-idp:AdminDisableUser
+                - cognito-idp:AdminEnableUser
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminSetUserPassword
               Resource:
                 - !Join
                   - ""
@@ -99,10 +107,50 @@ Resources:
           COGNITO_POOL_CLIENT_ID:
             Fn::ImportValue: AuthStack-user-pool-client-id
 
+  # Alarms
+  BuggyApiFunctionsAlarmsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Endpoint: andrey.kotsar@gmail.com
+          Protocol: email
+      TopicName: BuggyApiFunctionAlarms
+
+  BuggyApiLambdaInvocationsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Lambda invocations
+      AlarmName: LambdaInvocationsAlarm
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 1
+      Namespace: AWS/Lambda
+      MetricName: Invocations
+      Statistic: Sum
+      Threshold: 50
+      TreatMissingData: missing
+      AlarmActions:
+        - !Ref BuggyApiFunctionsAlarmsTopic
+
+  BuggyApiDailyLambdaInvocationsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Lambda invocations
+      AlarmName: LambdaDailyInvocationsAlarm
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Period: 86400 # 1 day
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Namespace: AWS/Lambda
+      MetricName: Invocations
+      Statistic: Sum
+      Threshold: 200
+      TreatMissingData: missing
+      AlarmActions:
+        - !Ref BuggyApiFunctionsAlarmsTopic
+
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   BuggyApiAPI:
     Description: "API Gateway endpoint URL for Prod environment for First Function"
     Value: !Sub "https://${BuggyApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
