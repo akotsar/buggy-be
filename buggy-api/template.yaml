@@ -51,6 +51,7 @@ Resources:
                 - dynamodb:Query
                 - dynamodb:Batch*
                 - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
               Resource:
                 - Fn::ImportValue: DataStack-data-table-arn
                 - !Join
