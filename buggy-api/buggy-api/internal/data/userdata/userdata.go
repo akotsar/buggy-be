@@ -39,10 +39,7 @@ func GetUserByID(session *session.Session, userID string) (*UserRecord, error) {
 
 	var userRecord UserRecord
 	recordID := GenerateUserRecordID(userID)
-	found, err := datacommon.GetItemByKey(dynamo, &datacommon.DynamoRecordKey{
-		RecordID:  recordID,
-		TypeAndID: recordID,
-	}, &userRecord)
+	found, err := datacommon.GetItemByKey(dynamo, &datacommon.DynamoRecordKey{RecordID: recordID, TypeAndID: recordID}, &userRecord)
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +49,24 @@ func GetUserByID(session *session.Session, userID string) (*UserRecord, error) {
 	}
 
 	return &userRecord, nil
+}
+
+// GetUsersByIDs returns a list of users by their IDs.
+func GetUsersByIDs(session *session.Session, userIDs []string) ([]*UserRecord, error) {
+	dynamo := dynamodb.New(session)
+
+	var userRecords []*UserRecord
+	var recordIDs []string
+	for _, id := range userIDs {
+		recordIDs = append(recordIDs, GenerateUserRecordID(id))
+	}
+
+	err := datacommon.GetItemsByIDs(dynamo, recordIDs, &userRecords)
+	if err != nil {
+		return nil, err
+	}
+
+	return userRecords, nil
 }
 
 // GenerateUserRecordID creates new record ID for a user.

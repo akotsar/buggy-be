@@ -4,6 +4,7 @@ import (
 	"buggy/api/admin"
 	"buggy/api/dashboard"
 	"buggy/api/makes"
+	"buggy/api/models"
 	"buggy/api/oauth"
 	"buggy/api/requestcontext"
 	"buggy/api/users"
@@ -36,6 +37,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return dashboard.Handler(context)
 	case strings.HasPrefix(context.Path, "makes"):
 		return makes.Handler(context)
+	case strings.HasPrefix(context.Path, "models"):
+		return models.Handler(context)
 	case strings.HasPrefix(context.Path, "admin"):
 		return admin.Handler(context)
 	case strings.HasPrefix(context.Path, "users"):

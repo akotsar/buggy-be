@@ -29,9 +29,11 @@ const TypeAndIDIndexName = "TypeAndID"
 // VotesIndexName defines name of the vodes index.
 const VotesIndexName = "Votes"
 
-// GetTableName returns the name of the Dynamo table.
-func GetTableName() string {
-	return os.Getenv("DATA_TABLE_NAME")
+// TableName contains the DB table name.
+var TableName string
+
+func init() {
+	TableName = os.Getenv("DATA_TABLE_NAME")
 }
 
 // GenerateNewShardID generates a new random shard ID.
@@ -57,7 +59,7 @@ func PutItem(dynamo *dynamodb.DynamoDB, item interface{}) (*dynamodb.PutItemOutp
 	}
 
 	return dynamo.PutItem(&dynamodb.PutItemInput{
-		TableName: aws.String(GetTableName()),
+		TableName: aws.String(TableName),
 		Item:      itemmap,
 	})
 }
@@ -69,7 +71,7 @@ func GetItemByKey(dynamo *dynamodb.DynamoDB, key *DynamoRecordKey, output interf
 		return false, err
 	}
 
-	request := &dynamodb.GetItemInput{TableName: aws.String(GetTableName()), Key: keyMap}
+	request := &dynamodb.GetItemInput{TableName: aws.String(TableName), Key: keyMap}
 	result, err := dynamo.GetItem(request)
 	if err != nil {
 		return false, err
@@ -86,7 +88,7 @@ func GetItemByKey(dynamo *dynamodb.DynamoDB, key *DynamoRecordKey, output interf
 
 // GetItemsByKeyPrefix Finds Records with TypeAndID starting with a given prefix.
 func GetItemsByKeyPrefix(dynamo *dynamodb.DynamoDB, prefix string, output interface{}) error {
-	tableName := GetTableName()
+	tableName := TableName
 
 	var shardOutputs [MaxShards]chan []map[string]*dynamodb.AttributeValue
 	for i := range shardOutputs {
@@ -169,7 +171,7 @@ func DeleteAllByPrefix(dynamo *dynamodb.DynamoDB, prefix string) error {
 
 		_, err = dynamo.BatchWriteItem(&dynamodb.BatchWriteItemInput{
 			RequestItems: map[string][]*dynamodb.WriteRequest{
-				GetTableName(): ops,
+				TableName: ops,
 			},
 		})
 		if err != nil {
@@ -206,7 +208,7 @@ func PutItems(dynamo *dynamodb.DynamoDB, items []map[string]*dynamodb.AttributeV
 
 		_, err := dynamo.BatchWriteItem(&dynamodb.BatchWriteItemInput{
 			RequestItems: map[string][]*dynamodb.WriteRequest{
-				GetTableName(): ops,
+				TableName: ops,
 			},
 		})
 		if err != nil {
@@ -215,4 +217,64 @@ func PutItems(dynamo *dynamodb.DynamoDB, items []map[string]*dynamodb.AttributeV
 	}
 
 	return nil
+}
+
+// IncField increments a numeric field of a single record.
+func IncField(dynamo *dynamodb.DynamoDB, field string, recordID string) error {
+	keyRecord := DynamoRecordKey{RecordID: recordID, TypeAndID: recordID}
+	key, err := dynamodbattribute.MarshalMap(&keyRecord)
+	if err != nil {
+		return err
+	}
+
+	incExpression := expression.Set(expression.Name(field), expression.Plus(expression.Name(field), expression.Value(1)))
+
+	expr, err := expression.NewBuilder().WithUpdate(incExpression).Build()
+	if err != nil {
+		return err
+	}
+
+	input := &dynamodb.UpdateItemInput{
+		TableName:                 aws.String(TableName),
+		Key:                       key,
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+		UpdateExpression:          expr.Update(),
+	}
+	_, err = dynamo.UpdateItem(input)
+
+	return err
+}
+
+// GetItemsByIDs returns a list of items by their IDs.
+func GetItemsByIDs(dynamo *dynamodb.DynamoDB, recordIDs []string, output interface{}) error {
+	tableName := TableName
+
+	var keys []map[string]*dynamodb.AttributeValue
+	for _, id := range recordIDs {
+		key, err := dynamodbattribute.MarshalMap(&DynamoRecordKey{RecordID: id, TypeAndID: id})
+		if err != nil {
+			return err
+		}
+
+		keys = append(keys, key)
+	}
+
+	var records []map[string]*dynamodb.AttributeValue
+	err := dynamo.BatchGetItemPages(&dynamodb.BatchGetItemInput{
+		RequestItems: map[string]*dynamodb.KeysAndAttributes{
+			tableName: {
+				Keys: keys,
+			},
+		},
+	}, func(page *dynamodb.BatchGetItemOutput, lastPage bool) bool {
+		records = append(records, page.Responses[tableName]...)
+
+		return !lastPage
+	})
+	if err != nil {
+		return err
+	}
+
+	return dynamodbattribute.UnmarshalListOfMaps(records, output)
 }

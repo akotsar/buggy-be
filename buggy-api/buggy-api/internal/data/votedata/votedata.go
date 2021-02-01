@@ -24,7 +24,7 @@ type VoteRecord struct {
 }
 
 // SortByDateDescending implements sort.Interface for []VoteRecord based on the DateVoted field.
-type SortByDateDescending []VoteRecord
+type SortByDateDescending []*VoteRecord
 
 func (a SortByDateDescending) Len() int           { return len(a) }
 func (a SortByDateDescending) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
@@ -45,22 +45,26 @@ func (model VoteRecord) GetUserID() string {
 	return strings.Split(model.TypeAndID, "|")[3]
 }
 
-// GetVotesByModelID returns a list of user votes for a given car model.
-func GetVotesByModelID(session *session.Session, modelID string) (*[]VoteRecord, error) {
+// GetNonEmptyCommentsByModelID returns a list of non-empty user comments for a given car model.
+func GetNonEmptyCommentsByModelID(session *session.Session, modelID string) ([]*VoteRecord, error) {
 	dynamo := dynamodb.New(session)
 
 	keyCondition := expression.Key("RecordID").Equal(expression.Value(modeldata.GenerateModelRecordID(modelID))).And(
 		expression.Key("TypeAndID").BeginsWith(GenerateVoteRecordID(modelID, "")),
 	)
 
-	expr, err := expression.NewBuilder().WithKeyCondition(keyCondition).Build()
+	nonEmptyCondition := expression.Name("Comment").AttributeNotExists().Or(
+		expression.Name("Comment").NotEqual(expression.Value("")))
+
+	expr, err := expression.NewBuilder().WithKeyCondition(keyCondition).WithFilter(nonEmptyCondition).Build()
 	if err != nil {
 		return nil, err
 	}
 
 	input := &dynamodb.QueryInput{
-		TableName:                 aws.String(datacommon.GetTableName()),
+		TableName:                 aws.String(datacommon.TableName),
 		KeyConditionExpression:    expr.KeyCondition(),
+		FilterExpression:          expr.Filter(),
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
 	}
@@ -69,13 +73,13 @@ func GetVotesByModelID(session *session.Session, modelID string) (*[]VoteRecord,
 		return nil, err
 	}
 
-	var votes []VoteRecord
+	var votes []*VoteRecord
 	err = dynamodbattribute.UnmarshalListOfMaps(queryResult.Items, &votes)
 	if err != nil {
 		return nil, err
 	}
 
-	return &votes, nil
+	return votes, nil
 }
 
 // HasUserVotedForModel returns true if the given user has voted for the given model.
@@ -117,6 +121,13 @@ func PutVotes(session *session.Session, votes []*VoteRecord) error {
 
 	err := datacommon.PutItems(dynamo, attrMaps)
 
+	return err
+}
+
+// PutVote creates a new vote record.
+func PutVote(session *session.Session, vote *VoteRecord) error {
+	dynamo := dynamodb.New(session)
+	_, err := datacommon.PutItem(dynamo, vote)
 	return err
 }
 

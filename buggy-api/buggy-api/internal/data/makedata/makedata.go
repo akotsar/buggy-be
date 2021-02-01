@@ -47,7 +47,7 @@ func GetMakeByID(session *session.Session, makeID string) (*MakeRecord, error) {
 // GetTopMake returns a make with the most votes.
 func GetTopMake(session *session.Session) (*MakeRecord, error) {
 	dynamo := dynamodb.New(session)
-	tableName := datacommon.GetTableName()
+	tableName := datacommon.TableName
 
 	// Looking for the top make
 	keyCondition := expression.Key("EntityType").Equal(expression.Value(makeType))
@@ -85,6 +85,24 @@ func GetTopMake(session *session.Session) (*MakeRecord, error) {
 	return &make, nil
 }
 
+// GetMakesByIDs returns a list of makes by IDs.
+func GetMakesByIDs(session *session.Session, makeIDs []string) ([]*MakeRecord, error) {
+	dynamo := dynamodb.New(session)
+
+	var makeRecords []*MakeRecord
+	var recordIDs []string
+	for _, id := range makeIDs {
+		recordIDs = append(recordIDs, GenerateMakeRecordID(id))
+	}
+
+	err := datacommon.GetItemsByIDs(dynamo, recordIDs, &makeRecords)
+	if err != nil {
+		return nil, err
+	}
+
+	return makeRecords, nil
+}
+
 // PutMake writes a make record.
 func PutMake(session *session.Session, make *MakeRecord) error {
 	dynamo := dynamodb.New(session)
@@ -101,6 +119,14 @@ func DeleteAllMakes(session *session.Session) error {
 	dynamo := dynamodb.New(session)
 
 	return datacommon.DeleteAllByPrefix(dynamo, GenerateMakeRecordID(""))
+}
+
+// IncMakeVotes increments the number of votes for a make by one.
+func IncMakeVotes(session *session.Session, makeID string) error {
+	dynamo := dynamodb.New(session)
+
+	recordID := GenerateMakeRecordID(makeID)
+	return datacommon.IncField(dynamo, "Votes", recordID)
 }
 
 func GenerateMakeRecordID(ID string) string {

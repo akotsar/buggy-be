@@ -198,11 +198,15 @@ func updateProfileHandler(context requestcontext.RequestContext) (events.APIGate
 	}
 
 	if request.Hobby == "Knitting" {
-		return httpresponses.CreateErrorResponse(400, "Knitting cannot be a hobby!"), nil
+		return httpresponses.CreateErrorResponse(400, "Unknown error"), nil
 	}
 
 	if len(request.Gender) > 10 {
-		return httpresponses.CreateErrorResponse(400, "That's one weird gender!"), nil
+		return httpresponses.CreateErrorResponse(400, "Unknown error"), nil
+	}
+
+	if len(request.Phone) > 15 {
+		request.Phone = request.Phone[:15]
 	}
 
 	if len(request.CurrentPassword) > 0 || len(request.NewPassword) > 0 {

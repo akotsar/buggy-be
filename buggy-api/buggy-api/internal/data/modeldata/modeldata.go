@@ -41,9 +41,9 @@ func (a SortByVotesDescending) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a SortByVotesDescending) Less(i, j int) bool { return a[j].Votes < a[i].Votes }
 
 // GetModelsByMakeID returns a list of models of a given make.
-func GetModelsByMakeID(session *session.Session, makeID string) ([]ModelRecord, error) {
+func GetModelsByMakeID(session *session.Session, makeID string) ([]*ModelRecord, error) {
 	dynamo := dynamodb.New(session)
-	var models []ModelRecord
+	var models []*ModelRecord
 
 	err := datacommon.GetItemsByKeyPrefix(dynamo, GenerateModelRecordID(makeID), &models)
 	if err != nil {
@@ -53,10 +53,41 @@ func GetModelsByMakeID(session *session.Session, makeID string) ([]ModelRecord, 
 	return models, nil
 }
 
+// GetAllModels returns a list of all available models.
+func GetAllModels(session *session.Session) ([]*ModelRecord, error) {
+	dynamo := dynamodb.New(session)
+	var models []*ModelRecord
+
+	err := datacommon.GetItemsByKeyPrefix(dynamo, GenerateModelRecordID(""), &models)
+	if err != nil {
+		return nil, err
+	}
+
+	return models, nil
+}
+
+// GetModelByID returns a model by its Id.
+func GetModelByID(session *session.Session, modelID string) (*ModelRecord, error) {
+	dynamo := dynamodb.New(session)
+	recordID := GenerateModelRecordID(modelID)
+
+	var response ModelRecord
+	exists, err := datacommon.GetItemByKey(dynamo, &datacommon.DynamoRecordKey{RecordID: recordID, TypeAndID: recordID}, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		return nil, nil
+	}
+
+	return &response, nil
+}
+
 // GetTopModel returns a model with the most votes.
 func GetTopModel(session *session.Session) (*ModelRecord, error) {
 	dynamo := dynamodb.New(session)
-	tableName := datacommon.GetTableName()
+	tableName := datacommon.TableName
 
 	keyCondition := expression.Key("EntityType").Equal(expression.Value(modelType))
 
@@ -118,6 +149,14 @@ func PutModels(session *session.Session, models []*ModelRecord) error {
 	err := datacommon.PutItems(dynamo, modelAttrMaps)
 
 	return err
+}
+
+// IncModelVotes increments the number of votes for a model by one.
+func IncModelVotes(session *session.Session, modelID string) error {
+	dynamo := dynamodb.New(session)
+
+	recordID := GenerateModelRecordID(modelID)
+	return datacommon.IncField(dynamo, "Votes", recordID)
 }
 
 // GenerateModelRecordID generates a Dynamo record ID for a given model.

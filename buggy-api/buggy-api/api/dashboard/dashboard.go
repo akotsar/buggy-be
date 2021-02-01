@@ -40,6 +40,8 @@ func Handler(context requestcontext.RequestContext) (events.APIGatewayProxyRespo
 		return dashboardHandler(context)
 	}
 
+	log.Println("No /dashboard route matched.")
+
 	return httpresponses.NotFound, nil
 }
 
