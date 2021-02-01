@@ -11,6 +11,7 @@ import (
 	"buggy/internal/auth"
 	"buggy/internal/httpresponses"
 	"log"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -22,9 +23,15 @@ import (
 var authHeaderRegex = regexp.MustCompile("^Bearer (\\S+)$")
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	path, err := url.PathUnescape(request.PathParameters["thepath"])
+	if err != nil {
+		log.Printf("Unable to unescape the path: %v\n", err)
+		path = request.PathParameters["thepath"]
+	}
+
 	context := requestcontext.RequestContext{
 		APIRequest: &request,
-		Path:       request.PathParameters["thepath"],
+		Path:       path,
 		Session:    session.Must(session.NewSession()),
 	}
 

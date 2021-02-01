@@ -59,6 +59,13 @@ type ChangePasswordInput struct {
 	Token           string
 }
 
+// GetUserOutput contains information about a single user.
+type GetUserOutput struct {
+	Username string
+	UserID   string
+	Enabled  bool
+}
+
 type cognitoClaims struct {
 	Subject  string `json:"sub,omitempty"`
 	Username string `json:"username,omitempty"`
@@ -173,8 +180,8 @@ func ValidateToken(tokenString string) (*ValidateTokenOutput, error) {
 	return &ValidateTokenOutput{UserID: claims.Subject, Username: claims.Username, Token: tokenString}, nil
 }
 
-// ChangePassword changes user password.
-func ChangePassword(session *session.Session, input *ChangePasswordInput) error {
+// ChangePasswordVerifyCurrent changes user password veryfing the old password.
+func ChangePasswordVerifyCurrent(session *session.Session, input *ChangePasswordInput) error {
 	cognito := cognitoidentityprovider.New(session)
 	_, err := cognito.ChangePassword(&cognitoidentityprovider.ChangePasswordInput{
 		AccessToken:      aws.String(input.Token),
@@ -186,4 +193,109 @@ func ChangePassword(session *session.Session, input *ChangePasswordInput) error 
 	}
 
 	return nil
+}
+
+// GetAllUsers returns a list of all registered users.
+func GetAllUsers(session *session.Session) ([]*GetUserOutput, error) {
+	cognito := cognitoidentityprovider.New(session)
+
+	var users []*GetUserOutput
+	err := cognito.ListUsersPages(&cognitoidentityprovider.ListUsersInput{
+		UserPoolId: aws.String(CognitoPoolID),
+	}, func(page *cognitoidentityprovider.ListUsersOutput, lastPage bool) bool {
+		for _, u := range page.Users {
+			var userID string
+			for _, a := range u.Attributes {
+				if *a.Name == "sub" {
+					userID = *a.Value
+					break
+				}
+			}
+
+			users = append(users, &GetUserOutput{
+				Username: *u.Username,
+				UserID:   userID,
+				Enabled:  *u.Enabled,
+			})
+		}
+
+		return !lastPage
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
+// LockUser locks the specified user.
+func LockUser(session *session.Session, username string) error {
+	cognito := cognitoidentityprovider.New(session)
+	_, err := cognito.AdminDisableUser(&cognitoidentityprovider.AdminDisableUserInput{
+		UserPoolId: aws.String(CognitoPoolID),
+		Username:   aws.String(username),
+	})
+
+	return err
+}
+
+// UnlockUser unlocks the specified user.
+func UnlockUser(session *session.Session, username string) error {
+	cognito := cognitoidentityprovider.New(session)
+	_, err := cognito.AdminEnableUser(&cognitoidentityprovider.AdminEnableUserInput{
+		UserPoolId: aws.String(CognitoPoolID),
+		Username:   aws.String(username),
+	})
+
+	return err
+}
+
+// DeleteUser deletes a user.
+func DeleteUser(session *session.Session, username string) error {
+	cognito := cognitoidentityprovider.New(session)
+	_, err := cognito.AdminDeleteUser(&cognitoidentityprovider.AdminDeleteUserInput{
+		UserPoolId: aws.String(CognitoPoolID),
+		Username:   aws.String(username),
+	})
+
+	return err
+}
+
+// GetUserByUsername finds a user by username.
+func GetUserByUsername(session *session.Session, username string) (*GetUserOutput, error) {
+	cognito := cognitoidentityprovider.New(session)
+	user, err := cognito.AdminGetUser(&cognitoidentityprovider.AdminGetUserInput{
+		UserPoolId: aws.String(CognitoPoolID),
+		Username:   aws.String(username),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var userID string
+	for _, a := range user.UserAttributes {
+		if *a.Name == "sub" {
+			userID = *a.Value
+			break
+		}
+	}
+
+	return &GetUserOutput{
+		Username: *user.Username,
+		UserID:   userID,
+		Enabled:  *user.Enabled,
+	}, nil
+}
+
+// ChangePassword changes user's password.
+func ChangePassword(session *session.Session, username string, password string) error {
+	cognito := cognitoidentityprovider.New(session)
+	_, err := cognito.AdminSetUserPassword(&cognitoidentityprovider.AdminSetUserPasswordInput{
+		Permanent:  aws.Bool(true),
+		UserPoolId: aws.String(CognitoPoolID),
+		Username:   aws.String(username),
+		Password:   aws.String(password),
+	})
+
+	return err
 }

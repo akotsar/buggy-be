@@ -278,3 +278,18 @@ func GetItemsByIDs(dynamo *dynamodb.DynamoDB, recordIDs []string, output interfa
 
 	return dynamodbattribute.UnmarshalListOfMaps(records, output)
 }
+
+// DeleteItem deletes a single record.
+func DeleteItem(dynamo *dynamodb.DynamoDB, key *DynamoRecordKey) error {
+	keyMap, err := dynamodbattribute.MarshalMap(key)
+	if err != nil {
+		return err
+	}
+
+	_, err = dynamo.DeleteItem(&dynamodb.DeleteItemInput{
+		Key:       keyMap,
+		TableName: aws.String(TableName),
+	})
+
+	return err
+}

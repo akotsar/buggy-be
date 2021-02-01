@@ -211,7 +211,7 @@ func updateProfileHandler(context requestcontext.RequestContext) (events.APIGate
 
 	if len(request.CurrentPassword) > 0 || len(request.NewPassword) > 0 {
 		// Changing password.
-		err = auth.ChangePassword(context.Session, &auth.ChangePasswordInput{
+		err = auth.ChangePasswordVerifyCurrent(context.Session, &auth.ChangePasswordInput{
 			Username:        context.Username,
 			Token:           context.Token,
 			CurrentPassword: request.CurrentPassword,

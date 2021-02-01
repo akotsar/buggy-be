@@ -69,6 +69,27 @@ func GetUsersByIDs(session *session.Session, userIDs []string) ([]*UserRecord, e
 	return userRecords, nil
 }
 
+// GetAllUsers returns a list of all registered users.
+func GetAllUsers(session *session.Session) ([]*UserRecord, error) {
+	dynamo := dynamodb.New(session)
+
+	var userRecords []*UserRecord
+	err := datacommon.GetItemsByKeyPrefix(dynamo, GenerateUserRecordID(""), &userRecords)
+	if err != nil {
+		return nil, err
+	}
+
+	return userRecords, nil
+}
+
+// DeleteUser deletes a single user.
+func DeleteUser(session *session.Session, userID string) error {
+	dynamo := dynamodb.New(session)
+	recordID := GenerateUserRecordID(userID)
+
+	return datacommon.DeleteItem(dynamo, &datacommon.DynamoRecordKey{RecordID: recordID, TypeAndID: recordID})
+}
+
 // GenerateUserRecordID creates new record ID for a user.
 func GenerateUserRecordID(userID string) string {
 	return fmt.Sprintf("%s|%s", userType, userID)

@@ -14,9 +14,15 @@ Resources:
       StageName: prod
       Cors:
         AllowOrigin: "'*'"
-        AllowMethods: "'OPTIONS,HEAD,GET,PUT,POST'"
+        AllowMethods: "'OPTIONS,HEAD,GET,PUT,POST,DELETE'"
         AllowHeaders: "'*'"
         AllowCredentials: "'*'"
+      MethodSettings:
+        - CachingEnabled: false
+          HttpMethod: "*"
+          ResourcePath: "/*"
+          ThrottlingRateLimit: 3
+          ThrottlingBurstLimit: 3
       GatewayResponses:
         DEFAULT_4xx:
           ResponseParameters:
@@ -78,6 +84,12 @@ Resources:
             RestApiId: !Ref BuggyApi
             Path: /{thepath+}
             Method: PUT
+        CatchAllDelete:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BuggyApi
+            Path: /{thepath+}
+            Method: DELETE
       Environment:
         Variables:
           DATA_TABLE_NAME:

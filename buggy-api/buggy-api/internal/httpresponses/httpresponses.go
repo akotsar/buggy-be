@@ -8,7 +8,7 @@ import (
 )
 
 var NotFound = CreateErrorResponse(404, "Not Found")
-var InvalidRequest = CreateErrorResponse(400, "Unable to decode the request.")
+var InvalidRequest = CreateErrorResponse(400, "Invalid request.")
 var Unauthorized = CreateErrorResponse(401, "Not authorized.")
 
 type errorResponse struct {

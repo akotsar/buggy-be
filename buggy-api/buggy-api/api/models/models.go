@@ -10,13 +10,8 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
-var getModelByIDRegexp *regexp.Regexp
-var voteModelRegexp *regexp.Regexp
-
-func init() {
-	getModelByIDRegexp = regexp.MustCompile("^models\\/([^\\/]+)$")
-	voteModelRegexp = regexp.MustCompile("^models\\/([^\\/]+)\\/vote$")
-}
+var getModelByIDRegexp *regexp.Regexp = regexp.MustCompile("^models\\/([^\\/]+)$")
+var voteModelRegexp *regexp.Regexp = regexp.MustCompile("^models\\/([^\\/]+)\\/vote$")
 
 // Handler handles the user-related API requests.
 func Handler(context requestcontext.RequestContext) (events.APIGatewayProxyResponse, error) {
