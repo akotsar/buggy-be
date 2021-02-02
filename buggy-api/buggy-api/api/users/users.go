@@ -237,11 +237,15 @@ func updateProfileHandler(context requestcontext.RequestContext) (events.APIGate
 	userRecord.LastName = request.LastName
 	userRecord.Gender = request.Gender
 	// Intentional bug
-	age, err := strconv.Atoi(request.Age)
-	if err != nil {
-		return events.APIGatewayProxyResponse{}, err
+	if (len(request.Age)) > 0 {
+		age, err := strconv.Atoi(request.Age)
+		if err != nil {
+			return events.APIGatewayProxyResponse{}, err
+		}
+		userRecord.Age = age
+	} else {
+		userRecord.Age = 0
 	}
-	userRecord.Age = age
 	userRecord.Address = request.Address
 	userRecord.Phone = request.Phone
 	userRecord.Hobby = request.Hobby
