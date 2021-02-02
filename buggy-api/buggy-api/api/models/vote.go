@@ -46,6 +46,7 @@ func voteHandler(context requestcontext.RequestContext, modelID string) (events.
 	}
 
 	if voted {
+		log.Println("Cannot vote more than once.")
 		return httpresponses.CreateErrorResponse(400, "Cannot vote more than once"), nil
 	}
 

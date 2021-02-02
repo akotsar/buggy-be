@@ -194,14 +194,17 @@ func updateProfileHandler(context requestcontext.RequestContext) (events.APIGate
 	// Injecting bugs
 	match, err := regexp.Match("[^A-Za-z0-9]", []byte(request.Age))
 	if match {
+		log.Println("Get a Candy.")
 		return httpresponses.CreateErrorResponse(400, "Get a candy ;)"), nil
 	}
 
 	if request.Hobby == "Knitting" {
+		log.Println("Knitting is not a hobby.")
 		return httpresponses.CreateErrorResponse(400, "Unknown error"), nil
 	}
 
 	if len(request.Gender) > 10 {
+		log.Printf("Weird gender: %s\n", request.Gender)
 		return httpresponses.CreateErrorResponse(400, "Unknown error"), nil
 	}
 
@@ -218,6 +221,7 @@ func updateProfileHandler(context requestcontext.RequestContext) (events.APIGate
 			NewPassword:     request.NewPassword,
 		})
 		if err != nil {
+			log.Printf("Unable to change password: %v", err)
 			return httpresponses.CreateErrorResponse(400, err.Error()), nil
 		}
 	}

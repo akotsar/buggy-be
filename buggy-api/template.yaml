@@ -147,7 +147,7 @@ Resources:
       Namespace: AWS/Lambda
       MetricName: Invocations
       Statistic: Sum
-      Threshold: 1000
+      Threshold: 1500
       TreatMissingData: missing
       AlarmActions:
         - !Ref BuggyApiFunctionsAlarmsTopic
